@@ -13,8 +13,6 @@ import datetime
 # Emailing the results
 import smtplib
 from email.mime.multipart import MIMEMultipart
-# Seperate file NEEDS TO BE CREATED, read README for details
-from email import *
 
 # Executeable path to Chrome WEBDRIVER, not chrome executable
 # Note: File must be downloaded, read README
@@ -126,7 +124,7 @@ def compile_data():
     # prices
     prices = browser.find_elements_by_xpath(
         "//span[@data-test-id='listing-price-dollars']")
-    price_list = [value.text.split(' ')[1] for value in prices]
+    price_list = [value.text.split('$')[1] for value in prices]
 
     # durations
     durations = browser.find_elements_by_xpath(
@@ -209,6 +207,10 @@ def send_email(msg):  # Actually sends email to defined location
     server.sendmail('myemail@hotmail.com', 'myotheremail@hotmail.com', msg)
 
 
+# Username and password of your email
+username = "YOURUSERNAME"
+password = "YOURPASSWORD"
+
 for i in range(8):
     link = 'https://www.expedia.com/'
     browser.get(link)
@@ -218,12 +220,17 @@ for i in range(8):
         "//button[@id='tab-flight-tab-hp']")
     flights_only.click()
     ticket_chooser(return_ticket)
-    dep_country_chooser('Cairo')
-    arrival_country_chooser('New york')
-    dep_date_chooser('04', '01', '2019')
-    return_date_chooser('05', '02', '2019')
+
+    # Where all flight info is Entered by the user
+    dep_country_chooser('JFK, New York')
+    arrival_country_chooser('Orlando, Florida')
+    dep_date_chooser('01', '21', '2020')  # dd, mm, yyyy
+    return_date_chooser('01', '25', '2020')  # dd, mm, yyyy
     search()
     compile_data()
+    # Writes Data to Excel sheet
+    df.to_excel('flights.xlsx')
+
     # save values for email
     current_values = df.iloc[0]
     cheapest_dep_time = current_values[0]
@@ -237,5 +244,5 @@ for i in range(8):
     connect_mail(username, password)
     send_email(msg)
     print('Email sent!')
-    df.to_excel('flights.xlsx')
+    # Runs the program again the next HOUR
     time.sleep(3600)
