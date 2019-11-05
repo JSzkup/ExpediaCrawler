@@ -1,6 +1,6 @@
 # Browser automation through webdriver
 from selenium import webdriver
-from selenium.webdriver.common.by import By
+# from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 # Structure the data
@@ -13,8 +13,11 @@ import datetime
 # Emailing the results
 import smtplib
 from email.mime.multipart import MIMEMultipart
+# Seperate file NEEDS TO BE CREATED, read README for details
+from email import *
 
 # Executeable path to Chrome WEBDRIVER, not chrome executable
+# Note: File must be downloaded, read README
 browser = webdriver.Chrome(
     executable_path='C:\Program Files (x86)\Google\Chrome\Application\chromedriver.exe')
 
@@ -31,7 +34,7 @@ def ticket_chooser(ticket):  # Looks for the defined ticket types
     try:
         ticket_type = browser.find_element_by_xpath(ticket)
         ticket_type.click()
-    except Exception as i:
+    except Exception as _:
         pass
 
 
@@ -123,8 +126,7 @@ def compile_data():
     # prices
     prices = browser.find_elements_by_xpath(
         "//span[@data-test-id='listing-price-dollars']")
-    # TODO check here for errors
-    price_list = [value.text.split('')[1] for value in prices]
+    price_list = [value.text.split(' ')[1] for value in prices]
 
     # durations
     durations = browser.find_elements_by_xpath(
@@ -149,30 +151,91 @@ def compile_data():
     for i in range(len(dep_times_list)):
         try:
             df.loc[i, 'departure_time'] = dep_times_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
         try:
             df.loc[i, 'arrival_time'] = arr_times_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
         try:
             df.loc[i, 'airline'] = airlines_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
         try:
             df.loc[i, 'duration'] = durations_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
         try:
             df.loc[i, 'stops'] = stops_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
         try:
             df.loc[i, 'layovers'] = layovers_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
         try:
             df.loc[i, str(current_price)] = price_list[i]
-        except Exception as i:
+        except Exception as _:
             pass
     print('Excel Sheet Created!')
+
+
+def connect_mail(username, password):  # Logs into email to allow for email notifications
+    global server
+    server = smtplib.SMTP('smtp.outlook.com', 587)
+    server.ehlo()
+    server.starttls()
+    server.login(username, password)
+
+# Create message template for email
+
+
+def create_msg():
+    global msg
+    msg = '\nCurrent Cheapest flight:\n\nDeparture time: {}\nArrival time: {}\nAirline: {}\nFlight duration: {}\nNo. of stops: {}\nPrice: {}\n'.format(cheapest_dep_time,
+                                                                                                                                                       cheapest_arrival_time,
+                                                                                                                                                       cheapest_airline,
+                                                                                                                                                       cheapest_duration,
+                                                                                                                                                       cheapest_stops,
+                                                                                                                                                       cheapest_price)
+
+
+def send_email(msg):  # Actually sends email to defined location
+    global message
+    message = MIMEMultipart()
+    message['Subject'] = 'Current Best flight'
+    message['From'] = 'myemail@hotmail.com'
+    message['to'] = 'myotheremail@hotmail.com'
+    server.sendmail('myemail@hotmail.com', 'myotheremail@hotmail.com', msg)
+
+
+for i in range(8):
+    link = 'https://www.expedia.com/'
+    browser.get(link)
+    time.sleep(5)
+    # choose flights only
+    flights_only = browser.find_element_by_xpath(
+        "//button[@id='tab-flight-tab-hp']")
+    flights_only.click()
+    ticket_chooser(return_ticket)
+    dep_country_chooser('Cairo')
+    arrival_country_chooser('New york')
+    dep_date_chooser('04', '01', '2019')
+    return_date_chooser('05', '02', '2019')
+    search()
+    compile_data()
+    # save values for email
+    current_values = df.iloc[0]
+    cheapest_dep_time = current_values[0]
+    cheapest_arrival_time = current_values[1]
+    cheapest_airline = current_values[2]
+    cheapest_duration = current_values[3]
+    cheapest_stops = current_values[4]
+    cheapest_price = current_values[-1]
+    print('run {} completed!'.format(i))
+    create_msg()
+    connect_mail(username, password)
+    send_email(msg)
+    print('Email sent!')
+    df.to_excel('flights.xlsx')
+    time.sleep(3600)
